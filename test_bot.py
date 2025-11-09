@@ -1,15 +1,18 @@
 import telebot
 from telebot.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from flask import Flask, request
+import os
 
 # === НАСТРОЙКИ ===
-TOKEN = '8318284839:AAFXmBDloBgzvvABboSHOx56Ng_dy_oovwo'
+TOKEN = '8318284839:AAHalSsj5HjN7Wm7rocGSjTv3ufYkWp1-Lk'
 CHANNEL_USERNAME = '@AnastasyaSavkinaChannel'
 GIFT_FILE_PATH = 'gift.pdf'
 
 bot = telebot.TeleBot(TOKEN)
+app = Flask(__name__)
 
-# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (оставляете ваши существующие функции) ---
 
 def create_subscription_keyboard():
     """Создает inline-клавиатуру с кнопками 'Подписаться' и 'Я подписался'."""
@@ -25,21 +28,12 @@ def create_subscription_keyboard():
 def is_user_subscribed(user_id):
     """
     Проверяет, подписан ли пользователь на канал.
-
-    Args:
-        user_id (int): ID пользователя Telegram.
-
-    Returns:
-        bool: True, если пользователь подписан ('member', 'administrator', 'creator'),
-              False в противном случае или при ошибке.
     """
     try:
         chat_member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
         status = chat_member.status
         return status in ['member', 'administrator', 'creator']
     except Exception as e:
-        # Логируем ошибку, если нужно (например, print(f"Ошибка проверки: {e}"))
-        # Возвращаем False, если проверка не удалась
         return False
 
 
@@ -98,24 +92,7 @@ def send_reminder_message(chat_id, message_id, first_name):
                           parse_mode='HTML')
 
 
-def send_error_message(chat_id, message_id, first_name):
-    """Редактирует сообщение, информируя пользователя об ошибке."""
-    error_text = (
-        f"⚠️ Ой, {first_name}! Что-то пошло не так при проверке подписки.\n\n"
-        f"Пожалуйста, убедись, что ты <b>подписан(а)</b> на канал <i>{CHANNEL_USERNAME}</i>, "
-        f"и нажми кнопку 'Я подписался' снова.\n\n"
-        f"Если проблема повторяется, возможно, стоит выйти и снова зайти в Telegram и повторить попытку."
-    )
-    keyboard = create_subscription_keyboard()
-    bot.edit_message_text(chat_id=chat_id,
-                          message_id=message_id,
-                          text=error_text,
-                          reply_markup=keyboard,
-                          parse_mode='HTML')
-
-
 # --- ОБРАБОТЧИКИ КОМАНД И КНОПОК ---
-
 
 @bot.message_handler(commands=['start'])
 def handle_start(message: Message):
@@ -134,28 +111,55 @@ def handle_check_subscription(call):
     chat_id = call.message.chat.id
     message_id = call.message.message_id
 
-    # Проверяем подписку, используя отдельную функцию
     if is_user_subscribed(user_id):
-        # Успешная подписка - отправляем подарок
         if send_gift(chat_id, first_name):
             bot.answer_callback_query(call.id, "Подарок отправлен! 🎁")
         else:
-            # Если не удалось отправить файл, информируем об ошибке
             bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=message_id,
-                text=
-                f"❌ Извините, {first_name}, не удалось отправить подарок. Попробуйте позже."
+                text=f"❌ Извините, {first_name}, не удалось отправить подарок. Попробуйте позже."
             )
             bot.answer_callback_query(call.id, "Ошибка отправки файла.")
     else:
-        # Подписка не найдена или ошибка при проверке
         send_reminder_message(chat_id, message_id, first_name)
-        bot.answer_callback_query(call.id,
-                                  "Подпишись на канал и попробуй снова! 📢")
+        bot.answer_callback_query(call.id, "Подпишись на канал и попробуй снова! 📢")
 
 
-# Запуск бота
+# --- WEBHOOK И FLASK РОУТЫ ---
+
+@app.route('/')
+def home():
+    return "Бот работает!"
+
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    return 'OK'
+
+
+# Установка webhook при запуске
+def set_webhook():
+    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')}/webhook"
+    if webhook_url.startswith('https://'):
+        bot.remove_webhook()
+        bot.set_webhook(url=webhook_url)
+        print(f"Webhook установлен: {webhook_url}")
+    else:
+        print("Webhook URL не настроен, используется polling")
+
+
 if __name__ == "__main__":
-    print("Бот запущен...")
-    bot.polling(none_stop=True)
+    # На Render.com используется порт из переменной окружения
+    port = int(os.environ.get('PORT', 5000))
+
+    # Устанавливаем webhook
+    set_webhook()
+
+    # Запускаем Flask приложение
+    app.run(host='0.0.0.0', port=port)
