@@ -4,7 +4,7 @@ from flask import Flask, request
 import os
 
 # === НАСТРОЙКИ ===
-TOKEN = '8318284839:AAHalSsj5HjN7Wm7rocGSjTv3ufYkWp1-Lk'
+TOKEN = '8318284839:AAFXmBDloBgzvvABboSHOx56Ng_dy_oovwo'
 CHANNEL_USERNAME = '@AnastasyaSavkinaChannel'
 GIFT_FILE_PATH = 'gift.pdf'
 
