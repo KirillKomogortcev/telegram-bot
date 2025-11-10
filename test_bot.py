@@ -2,8 +2,14 @@ import telebot
 from telebot.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask, request
 import os
+import logging
 
 # === НАСТРОЙКИ ===
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 TOKEN = '8318284839:AAFXmBDloBgzvvABboSHOx56Ng_dy_oovwo'
 CHANNEL_USERNAME = '@AnastasyaSavkinaChannel'
 GIFT_FILE_PATH = 'gift.pdf'
@@ -143,17 +149,31 @@ def webhook():
     return 'OK'
 
 
-# Установка webhook при запуске
-def set_webhook():
+# # Установка webhook при запуске
+# def set_webhook():
+#     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')}/webhook"
+#     if webhook_url.startswith('https://'):
+#         bot.remove_webhook()
+#         bot.set_webhook(url=webhook_url)
+#         print(f"Webhook установлен: {webhook_url}")
+#     else:
+#         print("Webhook URL не настроен, используется polling")
+
+# Установка webhook при запуске приложения
+@app.before_first_request
+def setup_webhook():
     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME', '')}/webhook"
     if webhook_url.startswith('https://'):
-        bot.remove_webhook()
-        bot.set_webhook(url=webhook_url)
-        print(f"Webhook установлен: {webhook_url}")
+        try:
+            bot.remove_webhook()
+            bot.set_webhook(url=webhook_url)
+            logger.info(f"Webhook установлен: {webhook_url}")
+        except Exception as e:
+            logger.error(f"Ошибка установки webhook: {e}")
     else:
-        print("Webhook URL не настроен, используется polling")
+        logger.info("Webhook URL не настроен, используется polling")
 
-
+setup_webhook()
 # if __name__ == "__main__":
 #     # На Render.com используется порт из переменной окружения
 #     port = int(os.environ.get('PORT', 5000))
