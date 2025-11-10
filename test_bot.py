@@ -154,12 +154,12 @@ def set_webhook():
         print("Webhook URL не настроен, используется polling")
 
 
-if __name__ == "__main__":
-    # На Render.com используется порт из переменной окружения
-    port = int(os.environ.get('PORT', 5000))
-
-    # Устанавливаем webhook
-    set_webhook()
-
-    # Запускаем Flask приложение
-    app.run(host='0.0.0.0', port=port)
+# if __name__ == "__main__":
+#     # На Render.com используется порт из переменной окружения
+#     port = int(os.environ.get('PORT', 5000))
+#
+#     # Устанавливаем webhook
+#     set_webhook()
+#
+#     # Запускаем Flask приложение
+#     app.run(host='0.0.0.0', port=port)
